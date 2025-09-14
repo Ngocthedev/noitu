@@ -21,13 +21,13 @@ class PlayerCommands {
     /**
      * Execute slash command
      */
-    async executeSlashCommand(command, interaction) {
+    async executeSlashCommand(command, interaction, guildId) {
         switch (command) {
             case 'help':
-                await this.handleHelpCommand(interaction);
+                await this.handleHelpCommand(interaction, guildId);
                 break;
             case 'checkhelp':
-                await this.handleCheckHelpCommand(interaction);
+                await this.handleCheckHelpCommand(interaction, guildId);
                 break;
             default:
                 await interaction.reply({ content: '❓ Lệnh không hợp lệ!' });
@@ -37,13 +37,13 @@ class PlayerCommands {
     /**
      * Execute player command
      */
-    async executeCommand(command, message, args) {
+    async executeCommand(command, message, args, guildId) {
         switch (command) {
             case 'help':
-                await this.handleHelpCommand(message);
+                await this.handleHelpCommand(message, guildId);
                 break;
             case 'checkhelp':
-                await this.handleCheckHelpCommand(message);
+                await this.handleCheckHelpCommand(message, guildId);
                 break;
             default:
                 await message.reply('❓ Lệnh không hợp lệ!');
@@ -53,7 +53,7 @@ class PlayerCommands {
     /**
      * Handle /help command - provide game hint
      */
-    async handleHelpCommand(context) {
+    async handleHelpCommand(context, guildId) {
         try {
             const userId = context.user?.id || context.author?.id;
             
@@ -64,11 +64,11 @@ class PlayerCommands {
             }
 
             // Get hint
-            const hint = this.gameService.getHint();
+            const hint = this.gameService.getHint(guildId);
             if (!hint) {
                 // Auto-skip: Start new game when no valid words found
-                const gameChannelId = this.gameService.getGameChannelId();
-                const newWord = this.gameService.startNewGame();
+                const gameChannelId = this.gameService.getGameChannelId(guildId);
+                const newWord = this.gameService.startNewGame(guildId);
                 await this.statsService.incrementGamesPlayed();
                 
                 // Notify in game channel if available
@@ -120,7 +120,7 @@ class PlayerCommands {
     /**
      * Handle /checkhelp command - show remaining help count
      */
-    async handleCheckHelpCommand(context) {
+    async handleCheckHelpCommand(context, guildId) {
         try {
             const userId = context.user?.id || context.author?.id;
             const helpInfo = this.helpService.getRemainingHelp(userId);

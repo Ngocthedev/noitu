@@ -163,7 +163,7 @@ class NoiTuBot {
             }
             
             await this.dictionaryService.loadDictionary();
-            this.gameService.startNewGame();
+            console.log('✅ Bot đã sẵn sàng phục vụ nhiều server!');
         });
 
         this.client.on('messageCreate', async (message) => {
@@ -198,12 +198,21 @@ class NoiTuBot {
     async handleInteraction(interaction) {
         if (!interaction.isChatInputCommand()) return;
 
+        const guildId = interaction.guild?.id;
+        if (!guildId) {
+            await interaction.reply({ 
+                content: '❌ Bot chỉ hoạt động trong server, không hỗ trợ DM!', 
+                flags: [InteractionResponseFlags.Ephemeral] 
+            });
+            return;
+        }
+
         const command = interaction.commandName;
         
         try {
             // Player commands
             if (this.playerCommands.hasCommand(command)) {
-                await this.playerCommands.executeSlashCommand(command, interaction);
+                await this.playerCommands.executeSlashCommand(command, interaction, guildId);
                 return;
             }
 
@@ -216,7 +225,7 @@ class NoiTuBot {
                     });
                     return;
                 }
-                await this.ownerCommands.executeSlashCommand(command, interaction);
+                await this.ownerCommands.executeSlashCommand(command, interaction, guildId);
                 return;
             }
 
@@ -246,31 +255,36 @@ class NoiTuBot {
     async handleMessage(message) {
         // Ignore bot messages
         if (message.author.bot) return;
+        
+        // Only work in guilds, not DMs
+        if (!message.guild) return;
+        
+        const guildId = message.guild.id;
 
         // Handle commands
         if (message.content.startsWith('/')) {
-            await this.handleCommand(message);
+            await this.handleCommand(message, guildId);
             return;
         }
 
         // Handle game messages only in designated channel
-        const gameChannelId = this.gameService.getGameChannelId();
+        const gameChannelId = this.gameService.getGameChannelId(guildId);
         if (!gameChannelId || message.channel.id !== gameChannelId) return;
 
-        await this.handleGameMessage(message);
+        await this.handleGameMessage(message, guildId);
     }
 
     /**
      * Handle slash commands
      */
-    async handleCommand(message) {
+    async handleCommand(message, guildId) {
         const args = message.content.slice(1).split(' ');
         const command = args[0].toLowerCase();
 
         try {
             // Player commands
             if (this.playerCommands.hasCommand(command)) {
-                await this.playerCommands.executeCommand(command, message, args);
+                await this.playerCommands.executeCommand(command, message, args, guildId);
                 return;
             }
 
@@ -280,7 +294,7 @@ class NoiTuBot {
                     await message.reply('❌ Chỉ owner bot mới có thể sử dụng lệnh này!');
                     return;
                 }
-                await this.ownerCommands.executeCommand(command, message, args);
+                await this.ownerCommands.executeCommand(command, message, args, guildId);
                 return;
             }
 
@@ -295,8 +309,17 @@ class NoiTuBot {
     /**
      * Handle game messages (word chain inputs)
      */
-    async handleGameMessage(message) {
+    async handleGameMessage(message, guildId) {
         try {
+            // Pre-check: Only validate if message has exactly 2 words
+            // This prevents bot from reacting to normal chat messages
+            const words = message.content.trim().split(/\s+/);
+            if (words.length !== 2) {
+                // Silently ignore messages that are not exactly 2 words
+                // This allows normal conversation without bot interference
+                return;
+            }
+
             // Validate message format
             const validationResult = this.messageValidator.validateGameInput(message.content);
             if (!validationResult.isValid) {
@@ -316,7 +339,7 @@ class NoiTuBot {
             }
 
             // Process the word chain attempt
-            const result = await this.gameService.processWordChain(wordPair, message.author.id);
+            const result = await this.gameService.processWordChain(wordPair, message.author.id, guildId);
             
             if (result.isValid) {
                 await message.react('✅');
@@ -325,7 +348,7 @@ class NoiTuBot {
                 // Check if game should end and restart
                 if (result.shouldRestart) {
                     await message.channel.send('🎮 Trò chơi kết thúc, không còn từ nào hợp lệ để nối tiếp!');
-                    const newWord = this.gameService.startNewGame();
+                    const newWord = this.gameService.startNewGame(guildId);
                     await message.channel.send(`🎯 Ván mới bắt đầu với: **${newWord}**`);
                 }
             } else {

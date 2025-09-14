@@ -24,31 +24,31 @@ class OwnerCommands {
     /**
      * Execute slash command
      */
-    async executeSlashCommand(command, interaction) {
+    async executeSlashCommand(command, interaction, guildId) {
         switch (command) {
             case 'setnoitu':
-                await this.handleSetNoiTuSlashCommand(interaction);
+                await this.handleSetNoiTuSlashCommand(interaction, guildId);
                 break;
             case 'setmaxhelp':
-                await this.handleSetMaxHelpSlashCommand(interaction);
+                await this.handleSetMaxHelpSlashCommand(interaction, guildId);
                 break;
             case 'givehelp':
-                await this.handleGiveHelpSlashCommand(interaction);
+                await this.handleGiveHelpSlashCommand(interaction, guildId);
                 break;
             case 'resethistory':
-                await this.handleResetHistoryCommand(interaction);
+                await this.handleResetHistoryCommand(interaction, guildId);
                 break;
             case 'forcenew':
-                await this.handleForceNewCommand(interaction);
+                await this.handleForceNewCommand(interaction, guildId);
                 break;
             case 'togglewords':
-                await this.handleToggleWordsSlashCommand(interaction);
+                await this.handleToggleWordsSlashCommand(interaction, guildId);
                 break;
             case 'setcooldown':
-                await this.handleSetCooldownSlashCommand(interaction);
+                await this.handleSetCooldownSlashCommand(interaction, guildId);
                 break;
             case 'stats':
-                await this.handleStatsCommand(interaction);
+                await this.handleStatsCommand(interaction, guildId);
                 break;
             default:
                 await interaction.reply({ content: '❓ Lệnh owner không hợp lệ!' });
@@ -58,31 +58,31 @@ class OwnerCommands {
     /**
      * Execute owner command
      */
-    async executeCommand(command, message, args) {
+    async executeCommand(command, message, args, guildId) {
         switch (command) {
             case 'setnoitu':
-                await this.handleSetNoiTuCommand(message, args);
+                await this.handleSetNoiTuCommand(message, args, guildId);
                 break;
             case 'setmaxhelp':
-                await this.handleSetMaxHelpCommand(message, args);
+                await this.handleSetMaxHelpCommand(message, args, guildId);
                 break;
             case 'givehelp':
-                await this.handleGiveHelpCommand(message, args);
+                await this.handleGiveHelpCommand(message, args, guildId);
                 break;
             case 'resethistory':
-                await this.handleResetHistoryCommand(message);
+                await this.handleResetHistoryCommand(message, guildId);
                 break;
             case 'forcenew':
-                await this.handleForceNewCommand(message);
+                await this.handleForceNewCommand(message, guildId);
                 break;
             case 'togglewords':
-                await this.handleToggleWordsCommand(message, args);
+                await this.handleToggleWordsCommand(message, args, guildId);
                 break;
             case 'setcooldown':
-                await this.handleSetCooldownCommand(message, args);
+                await this.handleSetCooldownCommand(message, args, guildId);
                 break;
             case 'stats':
-                await this.handleStatsCommand(message);
+                await this.handleStatsCommand(message, guildId);
                 break;
             default:
                 await message.reply('❓ Lệnh owner không hợp lệ!');
@@ -92,7 +92,7 @@ class OwnerCommands {
     /**
      * Handle /setnoitu slash command
      */
-    async handleSetNoiTuSlashCommand(interaction) {
+    async handleSetNoiTuSlashCommand(interaction, guildId) {
         try {
             const channel = interaction.options.getChannel('channel');
             
@@ -101,11 +101,11 @@ class OwnerCommands {
                 return;
             }
 
-            this.gameService.setGameChannelId(channel.id);
+            this.gameService.setGameChannelId(channel.id, guildId);
             await interaction.reply({ content: `✅ Đã thiết lập kênh nối từ: ${channel}` });
             
             // Start new game in the channel
-            const newWord = this.gameService.startNewGame();
+            const newWord = this.gameService.startNewGame(guildId);
             await channel.send(`🎯 Trò chơi nối từ bắt đầu! Từ đầu tiên: **${newWord}**`);
         } catch (error) {
             console.error('Set noitu slash command error:', error);
@@ -116,7 +116,7 @@ class OwnerCommands {
     /**
      * Handle /setnoitu command
      */
-    async handleSetNoiTuCommand(message, args) {
+    async handleSetNoiTuCommand(message, args, guildId) {
         try {
             if (args.length < 2) {
                 await message.reply('❌ Sử dụng: `/setnoitu channel:#tên-kênh`');
@@ -139,11 +139,11 @@ class OwnerCommands {
                 return;
             }
 
-            this.gameService.setGameChannelId(channelId);
+            this.gameService.setGameChannelId(channelId, guildId);
             await message.reply(`✅ Đã thiết lập kênh nối từ: ${channel}`);
             
             // Start new game in the channel
-            const newWord = this.gameService.startNewGame();
+            const newWord = this.gameService.startNewGame(guildId);
             await channel.send(`🎯 Trò chơi nối từ bắt đầu! Từ đầu tiên: **${newWord}**`);
         } catch (error) {
             console.error('Set noitu command error:', error);
@@ -154,7 +154,7 @@ class OwnerCommands {
     /**
      * Handle /setmaxhelp slash command
      */
-    async handleSetMaxHelpSlashCommand(interaction) {
+    async handleSetMaxHelpSlashCommand(interaction, guildId) {
         try {
             const maxHelp = interaction.options.getInteger('amount');
             
@@ -174,7 +174,7 @@ class OwnerCommands {
     /**
      * Handle /setmaxhelp command
      */
-    async handleSetMaxHelpCommand(message, args) {
+    async handleSetMaxHelpCommand(message, args, guildId) {
         try {
             if (args.length < 2) {
                 await message.reply('❌ Sử dụng: `/setmaxhelp <số>`');
@@ -198,7 +198,7 @@ class OwnerCommands {
     /**
      * Handle /givehelp slash command
      */
-    async handleGiveHelpSlashCommand(interaction) {
+    async handleGiveHelpSlashCommand(interaction, guildId) {
         try {
             const user = interaction.options.getUser('user');
             const amount = interaction.options.getInteger('amount');
@@ -219,7 +219,7 @@ class OwnerCommands {
     /**
      * Handle /givehelp command
      */
-    async handleGiveHelpCommand(message, args) {
+    async handleGiveHelpCommand(message, args, guildId) {
         try {
             if (args.length < 3) {
                 await message.reply('❌ Sử dụng: `/givehelp @user <số>`');
@@ -254,9 +254,9 @@ class OwnerCommands {
     /**
      * Handle /resethistory command
      */
-    async handleResetHistoryCommand(context) {
+    async handleResetHistoryCommand(context, guildId) {
         try {
-            this.gameService.resetHistory();
+            this.gameService.resetHistory(guildId);
             await this.statsService.incrementGameResets();
             
             await context.reply('✅ Đã xóa lịch sử cụm từ trong ván hiện tại!');
@@ -269,12 +269,12 @@ class OwnerCommands {
     /**
      * Handle /forcenew command
      */
-    async handleForceNewCommand(context) {
+    async handleForceNewCommand(context, guildId) {
         try {
-            const newWord = this.gameService.startNewGame();
+            const newWord = this.gameService.startNewGame(guildId);
             await this.statsService.incrementGamesPlayed();
             
-            const channelId = this.gameService.getGameChannelId();
+            const channelId = this.gameService.getGameChannelId(guildId);
             if (channelId) {
                 const guild = context.guild || context.message?.guild;
                 const channel = guild?.channels.cache.get(channelId);
@@ -293,12 +293,12 @@ class OwnerCommands {
     /**
      * Handle /togglewords slash command
      */
-    async handleToggleWordsSlashCommand(interaction) {
+    async handleToggleWordsSlashCommand(interaction, guildId) {
         try {
             const setting = interaction.options.getString('setting');
             const enabled = setting === 'on';
             
-            this.gameService.toggleDuplicateCheck(enabled);
+            this.gameService.toggleDuplicateCheck(enabled, guildId);
             
             const status = enabled ? '✅ BẬT' : '❌ TẮT';
             await interaction.reply({ content: `${status} kiểm tra trùng lặp cụm từ!` });
@@ -311,7 +311,7 @@ class OwnerCommands {
     /**
      * Handle /togglewords command
      */
-    async handleToggleWordsCommand(message, args) {
+    async handleToggleWordsCommand(message, args, guildId) {
         try {
             if (args.length < 2) {
                 await message.reply('❌ Sử dụng: `/togglewords on/off`');
@@ -325,7 +325,7 @@ class OwnerCommands {
             }
 
             const enabled = setting === 'on';
-            this.gameService.toggleDuplicateCheck(enabled);
+            this.gameService.toggleDuplicateCheck(enabled, guildId);
             
             const status = enabled ? '✅ BẬT' : '❌ TẮT';
             await message.reply(`${status} kiểm tra trùng lặp cụm từ!`);
@@ -338,7 +338,7 @@ class OwnerCommands {
     /**
      * Handle /setcooldown slash command
      */
-    async handleSetCooldownSlashCommand(interaction) {
+    async handleSetCooldownSlashCommand(interaction, guildId) {
         try {
             const seconds = interaction.options.getInteger('seconds');
             
@@ -347,7 +347,7 @@ class OwnerCommands {
                 return;
             }
 
-            this.gameService.setCooldownTime(seconds);
+            this.gameService.setCooldownTime(seconds, guildId);
             await interaction.reply({ content: `✅ Đã đặt thời gian chờ: **${seconds}** giây` });
         } catch (error) {
             console.error('Set cooldown slash command error:', error);
@@ -358,7 +358,7 @@ class OwnerCommands {
     /**
      * Handle /setcooldown command
      */
-    async handleSetCooldownCommand(message, args) {
+    async handleSetCooldownCommand(message, args, guildId) {
         try {
             if (args.length < 2) {
                 await message.reply('❌ Sử dụng: `/setcooldown <giây>`');
@@ -371,7 +371,7 @@ class OwnerCommands {
                 return;
             }
 
-            this.gameService.setCooldownTime(seconds);
+            this.gameService.setCooldownTime(seconds, guildId);
             await message.reply(`✅ Đã đặt thời gian chờ: **${seconds}** giây`);
         } catch (error) {
             console.error('Set cooldown command error:', error);
@@ -382,11 +382,12 @@ class OwnerCommands {
     /**
      * Handle /stats command
      */
-    async handleStatsCommand(context) {
+    async handleStatsCommand(context, guildId) {
         try {
-            const gameStats = this.gameService.getGameStats();
+            const gameStats = this.gameService.getGameStats(guildId);
             const allStats = this.statsService.getAllStats();
             const helpStats = this.helpService.getHelpStats();
+            const activeGuilds = this.gameService.getActiveGuildsCount();
 
             const embed = {
                 title: '📊 Thống Kê Bot Nối Từ',
@@ -412,7 +413,8 @@ class OwnerCommands {
                         name: '🏆 Tổng quan',
                         value: `Ván đã chơi: **${allStats.allTime.gamesPlayed}**\n` +
                                `Lần reset: **${allStats.allTime.gameResets}**\n` +
-                               `Từ tuần này: **${allStats.thisWeek.totalWords}**`,
+                               `Từ tuần này: **${allStats.thisWeek.totalWords}**\n` +
+                               `Server đang chơi: **${activeGuilds}**`,
                         inline: true
                     }
                 ],

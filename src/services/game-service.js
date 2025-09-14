@@ -1,35 +1,48 @@
 /**
- * Game Service - Manages game state and logic
+ * Game Service - Manages game state and logic per guild
  * Implements Open/Closed Principle - extensible for new game modes
+ * Now supports multiple guilds with separate game states
  */
 class GameService {
     constructor(dictionaryService) {
         this.dictionaryService = dictionaryService;
-        this.gameState = {
-            currentWord: null,
-            lastPlayer: null,
-            usedWordPairs: new Set(),
-            gameChannelId: null,
-            checkDuplicates: true,
-            cooldownTime: 3 // seconds
-        };
-        this.playerCooldowns = new Map();
+        // Map to store game state for each guild (server)
+        this.guildGameStates = new Map();
+        this.playerCooldowns = new Map(); // Keep global cooldowns for simplicity
     }
 
     /**
-     * Start a new game with a random word pair
+     * Get or create game state for a specific guild
      */
-    startNewGame() {
+    getOrCreateGameState(guildId) {
+        if (!this.guildGameStates.has(guildId)) {
+            this.guildGameStates.set(guildId, {
+                currentWord: null,
+                lastPlayer: null,
+                usedWordPairs: new Set(),
+                gameChannelId: null,
+                checkDuplicates: true,
+                cooldownTime: 3 // seconds
+            });
+        }
+        return this.guildGameStates.get(guildId);
+    }
+
+    /**
+     * Start a new game with a random word pair for a specific guild
+     */
+    startNewGame(guildId) {
         try {
+            const gameState = this.getOrCreateGameState(guildId);
             const randomWordPair = this.dictionaryService.getRandomWordPair();
             const words = randomWordPair.split(' ');
             
-            this.gameState.currentWord = words[1]; // Second word becomes the starting word
-            this.gameState.lastPlayer = null;
-            this.gameState.usedWordPairs.clear();
-            this.gameState.usedWordPairs.add(randomWordPair.toLowerCase());
+            gameState.currentWord = words[1]; // Second word becomes the starting word
+            gameState.lastPlayer = null;
+            gameState.usedWordPairs.clear();
+            gameState.usedWordPairs.add(randomWordPair.toLowerCase());
             
-            console.log(`🎯 Ván mới bắt đầu với: "${randomWordPair}"`);
+            console.log(`🎯 Ván mới bắt đầu tại guild ${guildId} với: "${randomWordPair}"`);
             return randomWordPair;
         } catch (error) {
             console.error('Error starting new game:', error);
@@ -38,9 +51,10 @@ class GameService {
     }
 
     /**
-     * Process a word chain attempt
+     * Process a word chain attempt for a specific guild
      */
-    async processWordChain(wordPair, playerId) {
+    async processWordChain(wordPair, playerId, guildId) {
+        const gameState = this.getOrCreateGameState(guildId);
         const result = {
             isValid: false,
             error: null,
@@ -48,7 +62,7 @@ class GameService {
         };
 
         // Check if player is trying to chain themselves
-        if (this.gameState.lastPlayer === playerId) {
+        if (gameState.lastPlayer === playerId) {
             result.error = '❌ Bạn không thể nối chính mình, hãy để người khác nối tiếp!';
             return result;
         }
@@ -63,27 +77,27 @@ class GameService {
         const firstWord = words[0];
 
         // Check if first word matches current word
-        if (!this.gameState.currentWord || firstWord !== this.gameState.currentWord.toLowerCase()) {
-            result.error = `❌ Từ đầu tiên phải là "${this.gameState.currentWord}"!`;
+        if (!gameState.currentWord || firstWord !== gameState.currentWord.toLowerCase()) {
+            result.error = `❌ Từ đầu tiên phải là "${gameState.currentWord}"!`;
             return result;
         }
 
         // Check for duplicates if enabled
-        if (this.gameState.checkDuplicates && this.gameState.usedWordPairs.has(wordPair.toLowerCase())) {
+        if (gameState.checkDuplicates && gameState.usedWordPairs.has(wordPair.toLowerCase())) {
             result.error = '❌ Cụm từ này đã được sử dụng trong ván này!';
             return result;
         }
 
         // Valid move
-        this.gameState.currentWord = words[1];
-        this.gameState.lastPlayer = playerId;
-        this.gameState.usedWordPairs.add(wordPair.toLowerCase());
+        gameState.currentWord = words[1];
+        gameState.lastPlayer = playerId;
+        gameState.usedWordPairs.add(wordPair.toLowerCase());
         this.setPlayerCooldown(playerId);
 
         // Check if there are any possible next moves
-        const possibleMoves = this.dictionaryService.getWordPairsStartingWith(this.gameState.currentWord);
-        const availableMoves = this.gameState.checkDuplicates 
-            ? possibleMoves.filter(move => !this.gameState.usedWordPairs.has(move.toLowerCase()))
+        const possibleMoves = this.dictionaryService.getWordPairsStartingWith(gameState.currentWord);
+        const availableMoves = gameState.checkDuplicates 
+            ? possibleMoves.filter(move => !gameState.usedWordPairs.has(move.toLowerCase()))
             : possibleMoves;
 
         if (availableMoves.length === 0) {
@@ -95,16 +109,18 @@ class GameService {
     }
 
     /**
-     * Get a hint for the current word
+     * Get a hint for the current word in a specific guild
      */
-    getHint() {
-        if (!this.gameState.currentWord) {
+    getHint(guildId) {
+        const gameState = this.getOrCreateGameState(guildId);
+        
+        if (!gameState.currentWord) {
             return null;
         }
 
-        const possibleMoves = this.dictionaryService.getWordPairsStartingWith(this.gameState.currentWord);
-        const availableMoves = this.gameState.checkDuplicates 
-            ? possibleMoves.filter(move => !this.gameState.usedWordPairs.has(move.toLowerCase()))
+        const possibleMoves = this.dictionaryService.getWordPairsStartingWith(gameState.currentWord);
+        const availableMoves = gameState.checkDuplicates 
+            ? possibleMoves.filter(move => !gameState.usedWordPairs.has(move.toLowerCase()))
             : possibleMoves;
 
         if (availableMoves.length === 0) {
@@ -119,7 +135,9 @@ class GameService {
      * Set cooldown for a player
      */
     setPlayerCooldown(playerId) {
-        this.playerCooldowns.set(playerId, Date.now() + (this.gameState.cooldownTime * 1000));
+        // Use global cooldown map for simplicity across all guilds
+        const gameState = this.guildGameStates.values().next().value || { cooldownTime: 3 };
+        this.playerCooldowns.set(playerId, Date.now() + (gameState.cooldownTime * 1000));
     }
 
     /**
@@ -138,59 +156,73 @@ class GameService {
     }
 
     /**
-     * Get current game state
+     * Get current game state for a specific guild
      */
-    getCurrentWord() {
-        return this.gameState.currentWord;
+    getCurrentWord(guildId) {
+        const gameState = this.getOrCreateGameState(guildId);
+        return gameState.currentWord;
     }
 
     /**
-     * Set game channel
+     * Set game channel for a specific guild
      */
-    setGameChannelId(channelId) {
-        this.gameState.gameChannelId = channelId;
+    setGameChannelId(channelId, guildId) {
+        const gameState = this.getOrCreateGameState(guildId);
+        gameState.gameChannelId = channelId;
     }
 
     /**
-     * Get game channel ID
+     * Get game channel ID for a specific guild
      */
-    getGameChannelId() {
-        return this.gameState.gameChannelId;
+    getGameChannelId(guildId) {
+        const gameState = this.getOrCreateGameState(guildId);
+        return gameState.gameChannelId;
     }
 
     /**
-     * Reset game history
+     * Reset game history for a specific guild
      */
-    resetHistory() {
-        this.gameState.usedWordPairs.clear();
-        this.gameState.lastPlayer = null;
+    resetHistory(guildId) {
+        const gameState = this.getOrCreateGameState(guildId);
+        gameState.usedWordPairs.clear();
+        gameState.lastPlayer = null;
     }
 
     /**
-     * Toggle duplicate checking
+     * Toggle duplicate checking for a specific guild
      */
-    toggleDuplicateCheck(enabled) {
-        this.gameState.checkDuplicates = enabled;
+    toggleDuplicateCheck(enabled, guildId) {
+        const gameState = this.getOrCreateGameState(guildId);
+        gameState.checkDuplicates = enabled;
     }
 
     /**
-     * Set cooldown time
+     * Set cooldown time for a specific guild
      */
-    setCooldownTime(seconds) {
-        this.gameState.cooldownTime = Math.max(0, seconds);
+    setCooldownTime(seconds, guildId) {
+        const gameState = this.getOrCreateGameState(guildId);
+        gameState.cooldownTime = Math.max(0, seconds);
     }
 
     /**
-     * Get game statistics
+     * Get game statistics for a specific guild
      */
-    getGameStats() {
+    getGameStats(guildId) {
+        const gameState = this.getOrCreateGameState(guildId);
         return {
-            currentWord: this.gameState.currentWord,
-            usedWordPairsCount: this.gameState.usedWordPairs.size,
+            currentWord: gameState.currentWord,
+            usedWordPairsCount: gameState.usedWordPairs.size,
             dictionarySize: this.dictionaryService.getDictionarySize(),
-            checkDuplicates: this.gameState.checkDuplicates,
-            cooldownTime: this.gameState.cooldownTime
+            checkDuplicates: gameState.checkDuplicates,
+            cooldownTime: gameState.cooldownTime
         };
+    }
+
+    /**
+     * Get total number of active guilds
+     */
+    getActiveGuildsCount() {
+        return this.guildGameStates.size;
     }
 }
 
