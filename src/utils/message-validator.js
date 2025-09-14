@@ -37,8 +37,8 @@ class MessageValidator {
         }
 
         // Check for minimum word length
-        if (words[0].length < 1 || words[1].length < 1) {
-            result.error = '❌ Mỗi từ phải có ít nhất 1 ký tự!';
+        if (words[0].length < 2 || words[1].length < 2) {
+            result.error = '❌ Mỗi từ phải có ít nhất 2 ký tự!';
             return result;
         }
 
